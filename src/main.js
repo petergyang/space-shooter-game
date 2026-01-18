@@ -25,3 +25,19 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+
+// Resume audio when returning to the tab (mobile browsers suspend audio)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        if (game.sound && game.sound.context && game.sound.context.state === 'suspended') {
+            game.sound.context.resume();
+        }
+    }
+});
+
+// Also resume on any user interaction (fallback for some browsers)
+document.addEventListener('touchstart', () => {
+    if (game.sound && game.sound.context && game.sound.context.state === 'suspended') {
+        game.sound.context.resume();
+    }
+}, { once: false });
