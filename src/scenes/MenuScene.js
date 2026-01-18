@@ -7,7 +7,8 @@ export default class MenuScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
-        // Start title music
+        // Stop any previous music and start title music
+        this.sound.stopAll();
         this.music = this.sound.add('music-title', { loop: true, volume: 0.5 });
         this.music.play();
 
@@ -147,13 +148,13 @@ export default class MenuScene extends Phaser.Scene {
 
         // ===== DECORATIVE SHIP =====
 
-        this.ship = this.add.sprite(240, 480, 'ship').setScale(4);
+        this.ship = this.add.sprite(240, 500, 'ship').setScale(4);
         this.ship.play('ship-thrust');
 
         // Ship floating animation
         this.tweens.add({
             targets: this.ship,
-            y: { from: 480, to: 500 },
+            y: { from: 500, to: 520 },
             duration: 2000,
             yoyo: true,
             repeat: -1,
@@ -172,8 +173,7 @@ export default class MenuScene extends Phaser.Scene {
 
         // ===== MENU BUTTON =====
 
-        const playBtn = this.createButton(width / 2, 430, '[ LAUNCH ]', '#00ff00', () => {
-            this.music.stop();
+        const playBtn = this.createButton(width / 2, 560, '[ LAUNCH ]', '#00ff00', () => {
             this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('GameScene', { level: 1 });
@@ -189,30 +189,6 @@ export default class MenuScene extends Phaser.Scene {
             repeat: -1
         });
 
-        // ===== BOTTOM INFO =====
-
-        // Controls box
-        this.add.rectangle(width / 2, 575, 300, 55, 0x000000, 0.6)
-            .setStrokeStyle(1, 0x333333);
-
-        this.add.text(width / 2, 560, 'WASD/ARROWS - Move | SPACE - Fire', {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            fill: '#666666'
-        }).setOrigin(0.5);
-
-        this.add.text(width / 2, 578, 'Touch & drag on mobile', {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            fill: '#555555'
-        }).setOrigin(0.5);
-
-        this.add.text(width / 2, 596, 'Z - Skip to boss | X - Skip level', {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            fill: '#333333'
-        }).setOrigin(0.5);
-
         // Version
         this.add.text(width / 2, 625, 'v1.0', {
             fontFamily: 'monospace',
@@ -222,7 +198,6 @@ export default class MenuScene extends Phaser.Scene {
 
         // Keyboard shortcuts
         this.input.keyboard.once('keydown-SPACE', () => {
-            this.music.stop();
             this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('GameScene', { level: 1 });
@@ -230,7 +205,6 @@ export default class MenuScene extends Phaser.Scene {
         });
 
         this.input.keyboard.once('keydown-ENTER', () => {
-            this.music.stop();
             this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('GameScene', { level: 1 });

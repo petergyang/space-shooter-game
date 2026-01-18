@@ -13,7 +13,8 @@ export default class GameOverScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
-        // Play title music (somber mood)
+        // Stop any previous music and play title music (somber mood)
+        this.sound.stopAll();
         this.music = this.sound.add('music-title', { loop: true, volume: 0.3 });
         this.music.play();
 
@@ -215,8 +216,7 @@ export default class GameOverScene extends Phaser.Scene {
             retryBtn.setFill('#00ff00');
         });
         retryBtn.on('pointerdown', () => {
-            this.music.stop();
-            this.cameras.main.flash(300, 255, 255, 255);
+                        this.cameras.main.flash(300, 255, 255, 255);
             this.time.delayedCall(200, () => {
                 this.scene.start('GameScene', { level: 1 });
             });
@@ -243,8 +243,7 @@ export default class GameOverScene extends Phaser.Scene {
         menuBtn.on('pointerover', () => menuBtn.setFill('#ffffff'));
         menuBtn.on('pointerout', () => menuBtn.setFill('#888888'));
         menuBtn.on('pointerdown', () => {
-            this.music.stop();
-            this.scene.start('MenuScene');
+                        this.scene.start('MenuScene');
         });
 
         // Bottom text
@@ -257,16 +256,14 @@ export default class GameOverScene extends Phaser.Scene {
         // ===== INPUT =====
 
         this.input.keyboard.once('keydown-SPACE', () => {
-            this.music.stop();
-            this.cameras.main.flash(300, 255, 255, 255);
+                        this.cameras.main.flash(300, 255, 255, 255);
             this.time.delayedCall(200, () => {
                 this.scene.start('GameScene', { level: 1 });
             });
         });
 
         this.input.keyboard.once('keydown-M', () => {
-            this.music.stop();
-            this.scene.start('MenuScene');
+                        this.scene.start('MenuScene');
         });
 
         // Initial effects

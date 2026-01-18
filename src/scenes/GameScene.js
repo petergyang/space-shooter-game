@@ -78,6 +78,9 @@ export default class GameScene extends Phaser.Scene {
         // Create UI
         this.createUI();
 
+        // Stop any previous music before starting new
+        this.sound.stopAll();
+
         // Setup sounds
         this.sounds = {
             explosion: this.sound.add('sfx-explosion', { volume: 0.6 }),
@@ -444,14 +447,17 @@ export default class GameScene extends Phaser.Scene {
         });
 
         // Spawn enemies - MORE enemies for frantic gameplay!
-        const enemyCount = 8 + (this.level * 4) + (this.wave * 4);
+        // Stage 3 gets extra enemies for chaos
+        const baseCount = 8 + (this.level * 4) + (this.wave * 4);
+        const enemyCount = this.level === 3 ? baseCount + 6 : baseCount;
         this.spawnWaveEnemies(enemyCount);
     }
 
     spawnWaveEnemies(count) {
         let spawned = 0;
-        // Much faster spawn rate for frantic action!
-        const spawnDelay = Math.max(250, 800 - (this.level * 80) - (this.wave * 40));
+        // Much faster spawn rate for frantic action! Stage 3 is even faster
+        let spawnDelay = Math.max(250, 800 - (this.level * 80) - (this.wave * 40));
+        if (this.level === 3) spawnDelay = Math.max(180, spawnDelay - 50);
 
         this.enemySpawnTimer = this.time.addEvent({
             delay: spawnDelay,
@@ -477,7 +483,23 @@ export default class GameScene extends Phaser.Scene {
         } else if (rand < bigChance + mediumChance) {
             this.createMediumEnemy(x);
         } else {
-            this.createSmallEnemy(x);
+            // Stage 2+: 25% chance to spawn a conga line of small enemies
+            if (this.level >= 2 && Math.random() < 0.25) {
+                this.spawnCongaLine(x);
+            } else {
+                this.createSmallEnemy(x);
+            }
+        }
+    }
+
+    spawnCongaLine(x) {
+        const count = Phaser.Math.Between(3, 4);
+        for (let i = 0; i < count; i++) {
+            this.time.delayedCall(i * 150, () => {
+                if (!this.isDead && !this.bossActive) {
+                    this.createSmallEnemy(x + Phaser.Math.Between(-20, 20));
+                }
+            });
         }
     }
 
@@ -498,7 +520,9 @@ export default class GameScene extends Phaser.Scene {
         enemy.health = 1;
         enemy.points = 100;
         enemy.setVelocityY(Phaser.Math.Between(120 + this.level * 20, 220 + this.level * 25));
-        enemy.setVelocityX(Phaser.Math.Between(-60, 60));
+        // Stage 2 enemies drift more
+        const driftAmount = this.level === 2 ? 100 : 60;
+        enemy.setVelocityX(Phaser.Math.Between(-driftAmount, driftAmount));
     }
 
     createMediumEnemy(x) {
@@ -523,6 +547,14 @@ export default class GameScene extends Phaser.Scene {
         enemy.shootDelay = Phaser.Math.Between(800 - this.level * 100, 1500 - this.level * 150);
         enemy.setVelocityY(Phaser.Math.Between(80, 140));
         enemy.setVelocityX(Phaser.Math.Between(-40, 40));
+
+        // Wobble movement for stage 2+
+        if (this.level >= 2) {
+            enemy.wobble = true;
+            enemy.wobblePhase = Math.random() * Math.PI * 2;
+            enemy.wobbleSpeed = Phaser.Math.Between(3, 5);
+            enemy.wobbleAmount = Phaser.Math.Between(40, 70);
+        }
     }
 
     createBigEnemy(x) {
@@ -547,6 +579,12 @@ export default class GameScene extends Phaser.Scene {
         enemy.shootDelay = Phaser.Math.Between(500, 1000);
         enemy.setVelocityY(Phaser.Math.Between(50, 90));
         enemy.trackPlayer = true;
+
+        // Erratic speed bursts for stage 3
+        if (this.level === 3) {
+            enemy.erraticSpeed = true;
+            enemy.nextSpeedChange = time + Phaser.Math.Between(500, 1200);
+        }
     }
 
     updateEnemies(time) {
@@ -564,6 +602,20 @@ export default class GameScene extends Phaser.Scene {
             if (enemy.trackPlayer && this.player.active) {
                 const dx = this.player.x - enemy.x;
                 enemy.setVelocityX(dx * 0.5);
+            }
+
+            // Wobble movement for medium enemies (stage 2+)
+            if (enemy.wobble) {
+                enemy.wobblePhase += 0.05 * enemy.wobbleSpeed;
+                const wobbleX = Math.sin(enemy.wobblePhase) * enemy.wobbleAmount;
+                enemy.setVelocityX(wobbleX);
+            }
+
+            // Erratic speed bursts for big enemies (stage 3)
+            if (enemy.erraticSpeed && time > enemy.nextSpeedChange) {
+                const burst = Phaser.Math.Between(0, 1) === 0;
+                enemy.setVelocityY(burst ? Phaser.Math.Between(120, 180) : Phaser.Math.Between(40, 70));
+                enemy.nextSpeedChange = time + Phaser.Math.Between(400, 1000);
             }
         });
     }
@@ -951,12 +1003,12 @@ export default class GameScene extends Phaser.Scene {
             localStorage.setItem('bestLevel', this.level);
         }
 
-        this.music.stop();
         if (this.level >= 3) {
             // Game complete!
+            this.music.stop();
             this.scene.start('VictoryScene', { score: this.score });
         } else {
-            // Next level
+            // Next level - music keeps playing until next stage loads
             this.announceText.setText('LEVEL COMPLETE!');
             this.announceText.setAlpha(1);
 

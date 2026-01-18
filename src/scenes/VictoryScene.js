@@ -11,7 +11,8 @@ export default class VictoryScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
-        // Play victory/ending music
+        // Stop any previous music and play victory/ending music
+        this.sound.stopAll();
         this.music = this.sound.add('music-ending', { loop: true, volume: 0.5 });
         this.music.play();
 
@@ -235,8 +236,7 @@ export default class VictoryScene extends Phaser.Scene {
             playAgainBtn.setFill('#00ffff');
         });
         playAgainBtn.on('pointerdown', () => {
-            this.music.stop();
-            this.cameras.main.flash(500, 255, 255, 255);
+                        this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('MenuScene');
             });
@@ -259,16 +259,14 @@ export default class VictoryScene extends Phaser.Scene {
         // ===== INPUT =====
 
         this.input.keyboard.once('keydown-SPACE', () => {
-            this.music.stop();
-            this.cameras.main.flash(500, 255, 255, 255);
+                        this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('MenuScene');
             });
         });
 
         this.input.once('pointerdown', () => {
-            this.music.stop();
-            this.cameras.main.flash(500, 255, 255, 255);
+                        this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('MenuScene');
             });
