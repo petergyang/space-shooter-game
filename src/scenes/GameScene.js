@@ -546,7 +546,10 @@ export default class GameScene extends Phaser.Scene {
         enemy.points = 200;
         enemy.canShoot = true;
         enemy.lastShot = 0;
-        enemy.shootDelay = Phaser.Math.Between(800 - this.level * 100, 1500 - this.level * 150);
+        // Stage 3 has slower fire rate to balance difficulty
+        const minDelay = this.level === 3 ? 700 : 800 - this.level * 100;
+        const maxDelay = this.level === 3 ? 1400 : 1500 - this.level * 150;
+        enemy.shootDelay = Phaser.Math.Between(minDelay, maxDelay);
         enemy.setVelocityY(Phaser.Math.Between(80, 140));
         enemy.setVelocityX(Phaser.Math.Between(-40, 40));
 
@@ -578,7 +581,8 @@ export default class GameScene extends Phaser.Scene {
         enemy.points = 500;
         enemy.canShoot = true;
         enemy.lastShot = 0;
-        enemy.shootDelay = Phaser.Math.Between(500, 1000);
+        // Stage 3 has slower fire rate to balance difficulty
+        enemy.shootDelay = this.level === 3 ? Phaser.Math.Between(700, 1200) : Phaser.Math.Between(500, 1000);
         enemy.setVelocityY(Phaser.Math.Between(50, 90));
         enemy.trackPlayer = true;
 
@@ -831,7 +835,7 @@ export default class GameScene extends Phaser.Scene {
             // Only uses pattern 0 (simple spread)
             for (let i = -1; i <= 1; i++) {
                 const bullet = this.enemyBullets.create(this.boss.x + i * 40, this.boss.y + 60, 'laser', 2);
-                bullet.setScale(2.5);
+                bullet.setScale(2);
                 bullet.setTint(0xff0000);
                 bullet.setVelocity(i * 60, 200);
             }
@@ -841,7 +845,7 @@ export default class GameScene extends Phaser.Scene {
                 // Wide fire spread (5 bullets in arc)
                 for (let i = -2; i <= 2; i++) {
                     const bullet = this.enemyBullets.create(this.boss.x, this.boss.y + 60, 'laser', 2);
-                    bullet.setScale(3);
+                    bullet.setScale(2);
                     bullet.setTint(0xff6600);
                     bullet.setVelocity(i * 70, 180);
                 }
@@ -849,7 +853,7 @@ export default class GameScene extends Phaser.Scene {
                 // Homing fireballs (3 that track player)
                 for (let i = -1; i <= 1; i++) {
                     const bullet = this.enemyBullets.create(this.boss.x + i * 60, this.boss.y + 50, 'laser', 2);
-                    bullet.setScale(3.5);
+                    bullet.setScale(2);
                     bullet.setTint(0xff4400);
                     const angle = Phaser.Math.Angle.Between(bullet.x, bullet.y, this.player.x, this.player.y);
                     bullet.setVelocity(Math.cos(angle) * 200, Math.sin(angle) * 200);
@@ -859,7 +863,7 @@ export default class GameScene extends Phaser.Scene {
                 for (let i = 0; i < 5; i++) {
                     const x = this.boss.x + Phaser.Math.Between(-100, 100);
                     const bullet = this.enemyBullets.create(x, this.boss.y + 40, 'laser', 2);
-                    bullet.setScale(2.5);
+                    bullet.setScale(2);
                     bullet.setTint(0xff2200);
                     bullet.setVelocity(Phaser.Math.Between(-30, 30), Phaser.Math.Between(200, 280));
                 }
@@ -870,7 +874,7 @@ export default class GameScene extends Phaser.Scene {
                 // Blue fire breath - wide spreading flames
                 for (let i = -3; i <= 3; i++) {
                     const bullet = this.enemyBullets.create(this.boss.x + i * 25, this.boss.y + 80, 'laser', 2);
-                    bullet.setScale(2.5);
+                    bullet.setScale(2);
                     bullet.setTint(0x00ccff); // Blue fire
                     bullet.setVelocity(i * 60, 200);
                 }
@@ -878,7 +882,7 @@ export default class GameScene extends Phaser.Scene {
                 // Dark orbs - homing projectiles from wings
                 for (let i = -1; i <= 1; i++) {
                     const bullet = this.enemyBullets.create(this.boss.x + i * 80, this.boss.y + 40, 'laser', 2);
-                    bullet.setScale(3);
+                    bullet.setScale(2);
                     bullet.setTint(0x8800ff); // Purple dark magic
                     const angle = Phaser.Math.Angle.Between(bullet.x, bullet.y, this.player.x, this.player.y);
                     bullet.setVelocity(Math.cos(angle) * 220, Math.sin(angle) * 220);
