@@ -19,17 +19,7 @@ const config = {
     },
     scale: {
         mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 480,
-        height: 640,
-        min: {
-            width: 240,
-            height: 320
-        },
-        max: {
-            width: 960,
-            height: 1280
-        }
+        autoCenter: Phaser.Scale.CENTER_BOTH
     },
     scene: [BootScene, MenuScene, GameScene, GameOverScene, VictoryScene]
 };
