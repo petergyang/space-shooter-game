@@ -585,7 +585,7 @@ export default class GameScene extends Phaser.Scene {
         // Erratic speed bursts for stage 3
         if (this.level === 3) {
             enemy.erraticSpeed = true;
-            enemy.nextSpeedChange = time + Phaser.Math.Between(500, 1200);
+            enemy.nextSpeedChange = 0;
         }
     }
 
