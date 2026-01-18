@@ -30,6 +30,14 @@ export default class BootScene extends Phaser.Scene {
             loadingText.destroy();
         });
 
+        // ============== SOUND EFFECTS ==============
+
+        this.load.audio('sfx-shoot', 'assets/sounds/shoot.wav');
+        this.load.audio('sfx-explosion', 'assets/sounds/explosion.wav');
+        this.load.audio('sfx-hit', 'assets/sounds/hit.wav');
+        this.load.audio('sfx-powerup', 'assets/sounds/powerup.wav');
+        this.load.audio('sfx-player-death', 'assets/sounds/player-death.wav');
+
         // ============== PLAYER & ENEMIES ==============
 
         this.load.spritesheet('ship', 'assets/sprites/ship.png', {
@@ -41,7 +49,7 @@ export default class BootScene extends Phaser.Scene {
         });
 
         this.load.spritesheet('enemy-medium', 'assets/sprites/enemy-medium.png', {
-            frameWidth: 16, frameHeight: 16
+            frameWidth: 32, frameHeight: 16
         });
 
         this.load.spritesheet('enemy-big', 'assets/sprites/enemy-big.png', {
@@ -62,6 +70,11 @@ export default class BootScene extends Phaser.Scene {
 
         this.load.spritesheet('laser', 'assets/sprites/laser-bolts.png', {
             frameWidth: 16, frameHeight: 16
+        });
+
+        // Fireball projectile (78x26, 3 frames of 26x26)
+        this.load.spritesheet('fireball', 'assets/sprites/fireball.png', {
+            frameWidth: 26, frameHeight: 26
         });
 
         this.load.spritesheet('powerup', 'assets/sprites/power-up.png', {
@@ -94,14 +107,65 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('stars', 'assets/backgrounds/parallax-space-stars.png');
         this.load.image('far-planets', 'assets/backgrounds/parallax-space-far-planets.png');
 
-        // Level 2: Planet approach
-        this.load.image('ring-planet', 'assets/backgrounds/parallax-space-ring-planet.png');
-        this.load.image('big-planet', 'assets/backgrounds/parallax-space-big-planet.png');
+        // Level 2: Desert Canyon
+        this.load.image('desert-bg', 'assets/backgrounds/level2/desert-backgorund.png');
+        this.load.image('desert-clouds', 'assets/backgrounds/level2/clouds.png');
 
-        // Level 3: Industrial/Alien territory
-        this.load.image('industrial-bg', 'assets/backgrounds/industrial-bg.png');
-        this.load.image('industrial-buildings', 'assets/backgrounds/industrial-buildings.png');
-        this.load.image('bulkhead', 'assets/backgrounds/bulkhead-walls-back.png');
+        // Level 3: Lava/Hell
+        this.load.image('lava-bg', 'assets/backgrounds/level3/lava-background.png');
+        // Animated lava flow (96x32, 3 frames of 32x32)
+        this.load.spritesheet('lava-flow', 'assets/backgrounds/level3/lava-flow.png', {
+            frameWidth: 32, frameHeight: 32
+        });
+
+        // ============== LEVEL 2 ENEMIES (Desert) ==============
+
+        // Green mech - small (240x48, 5 frames)
+        this.load.spritesheet('l2-enemy-small', 'assets/sprites/level2/enemy-01.png', {
+            frameWidth: 48, frameHeight: 48
+        });
+
+        // Blue robot - medium (192x48, 4 frames)
+        this.load.spritesheet('l2-enemy-medium', 'assets/sprites/level2/enemy-02.png', {
+            frameWidth: 48, frameHeight: 48
+        });
+
+        // Red armored - big (192x48, 4 frames)
+        this.load.spritesheet('l2-enemy-big', 'assets/sprites/level2/enemy-03.png', {
+            frameWidth: 48, frameHeight: 48
+        });
+
+        // Fire Skull boss (768x112, 8 frames)
+        this.load.spritesheet('fire-skull', 'assets/sprites/level2/fire-skull.png', {
+            frameWidth: 96, frameHeight: 112
+        });
+
+        // ============== LEVEL 3 ENEMIES (Lava/Hell) ==============
+
+        // Bat - small (48x16, 3 frames of 16x16)
+        this.load.spritesheet('l3-enemy-small', 'assets/sprites/level3/bat.png', {
+            frameWidth: 16, frameHeight: 16
+        });
+
+        // Ghost - medium (48x16, 3 frames of 16x16)
+        this.load.spritesheet('l3-enemy-medium', 'assets/sprites/level3/ghost.png', {
+            frameWidth: 16, frameHeight: 16
+        });
+
+        // Flying eye - big (384x48, 8 frames of 48x48)
+        this.load.spritesheet('l3-enemy-big', 'assets/sprites/level3/flying-eye.png', {
+            frameWidth: 48, frameHeight: 48
+        });
+
+        // Demon boss - idle (960x144, 6 frames of 160x144)
+        this.load.spritesheet('demon-idle', 'assets/sprites/level3/demon-idle.png', {
+            frameWidth: 160, frameHeight: 144
+        });
+
+        // Demon boss - attack (2640x192, 11 frames of 240x192)
+        this.load.spritesheet('demon-attack', 'assets/sprites/level3/demon-attack.png', {
+            frameWidth: 240, frameHeight: 192
+        });
     }
 
     create() {
@@ -132,7 +196,7 @@ export default class BootScene extends Phaser.Scene {
 
         this.anims.create({
             key: 'enemy-medium-fly',
-            frames: this.anims.generateFrameNumbers('enemy-medium', { start: 0, end: 3 }),
+            frames: this.anims.generateFrameNumbers('enemy-medium', { start: 0, end: 1 }),
             frameRate: 10,
             repeat: -1
         });
@@ -206,6 +270,89 @@ export default class BootScene extends Phaser.Scene {
             frames: this.anims.generateFrameNumbers('explosion-boss', { start: 0, end: 6 }),
             frameRate: 10,
             repeat: 0
+        });
+
+        // ============== LEVEL 2 ENEMY ANIMATIONS (Desert) ==============
+
+        this.anims.create({
+            key: 'l2-enemy-small-fly',
+            frames: this.anims.generateFrameNumbers('l2-enemy-small', { start: 0, end: 4 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'l2-enemy-medium-fly',
+            frames: this.anims.generateFrameNumbers('l2-enemy-medium', { start: 0, end: 3 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'l2-enemy-big-fly',
+            frames: this.anims.generateFrameNumbers('l2-enemy-big', { start: 0, end: 3 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'fire-skull-idle',
+            frames: this.anims.generateFrameNumbers('fire-skull', { start: 0, end: 7 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        // ============== LEVEL 3 ENEMY ANIMATIONS (Lava/Hell) ==============
+
+        this.anims.create({
+            key: 'l3-enemy-small-fly',
+            frames: this.anims.generateFrameNumbers('l3-enemy-small', { start: 0, end: 2 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'l3-enemy-medium-fly',
+            frames: this.anims.generateFrameNumbers('l3-enemy-medium', { start: 0, end: 2 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'l3-enemy-big-fly',
+            frames: this.anims.generateFrameNumbers('l3-enemy-big', { start: 0, end: 7 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'demon-idle',
+            frames: this.anims.generateFrameNumbers('demon-idle', { start: 0, end: 5 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'demon-attack',
+            frames: this.anims.generateFrameNumbers('demon-attack', { start: 0, end: 10 }),
+            frameRate: 12,
+            repeat: 0
+        });
+
+        // Lava flow animation
+        this.anims.create({
+            key: 'lava-flow',
+            frames: this.anims.generateFrameNumbers('lava-flow', { start: 0, end: 2 }),
+            frameRate: 6,
+            repeat: -1
+        });
+
+        // Fireball animation
+        this.anims.create({
+            key: 'fireball-spin',
+            frames: this.anims.generateFrameNumbers('fireball', { start: 0, end: 2 }),
+            frameRate: 12,
+            repeat: -1
         });
 
         // Start menu scene

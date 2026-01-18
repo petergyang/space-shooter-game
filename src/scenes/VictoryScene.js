@@ -11,13 +11,14 @@ export default class VictoryScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
-        // Background
-        this.bg = this.add.tileSprite(0, 0, 480, 640, 'background')
-            .setOrigin(0, 0)
-            .setScale(480 / 272, 640 / 160);
+        // Static background image (no seams)
+        this.bg = this.add.image(240, 320, 'background')
+            .setDisplaySize(480, 640);
+
+        // Scrolling stars layer
         this.stars = this.add.tileSprite(0, 0, 480, 640, 'stars')
             .setOrigin(0, 0)
-            .setScale(480 / 272, 640 / 160);
+            .setTileScale(2);
 
         // Victory title
         const victoryText = this.add.text(width / 2, 100, 'VICTORY!', {
@@ -145,8 +146,8 @@ export default class VictoryScene extends Phaser.Scene {
     }
 
     update() {
-        this.bg.tilePositionY -= 0.5;
-        this.stars.tilePositionY -= 2;
+        // Scroll stars only (background is static)
+        this.stars.tilePositionY -= 0.5;
     }
 
     createCelebrationExplosion() {

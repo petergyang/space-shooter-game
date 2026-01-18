@@ -7,14 +7,14 @@ export default class MenuScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
-        // Animated background
-        this.bg = this.add.tileSprite(0, 0, 480, 640, 'background')
-            .setOrigin(0, 0)
-            .setScale(480 / 272, 640 / 160);
+        // Static background image (no seams)
+        this.bg = this.add.image(240, 320, 'background')
+            .setDisplaySize(480, 640);
 
+        // Scrolling stars layer
         this.stars = this.add.tileSprite(0, 0, 480, 640, 'stars')
             .setOrigin(0, 0)
-            .setScale(480 / 272, 640 / 160);
+            .setTileScale(2);
 
         // Decorative ship
         this.ship = this.add.sprite(240, 450, 'ship')
@@ -107,9 +107,8 @@ export default class MenuScene extends Phaser.Scene {
     }
 
     update() {
-        // Scroll background
-        this.bg.tilePositionY -= 0.3;
-        this.stars.tilePositionY -= 1;
+        // Scroll stars only (background is static)
+        this.stars.tilePositionY -= 0.5;
     }
 
     createButton(x, y, text, callback) {

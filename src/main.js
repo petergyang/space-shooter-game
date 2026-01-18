@@ -18,7 +18,7 @@ const config = {
         }
     },
     scale: {
-        mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.HEIGHT_CONTROLS_WIDTH,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
     scene: [BootScene, MenuScene, GameScene, GameOverScene, VictoryScene]

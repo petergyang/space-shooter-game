@@ -1,3 +1,6 @@
 *.DS_Store
 node_modules/
 .env
+
+# Legacy asset collection (source files not used by game)
+Legacy Collection/

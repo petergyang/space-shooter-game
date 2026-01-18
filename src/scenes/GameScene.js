@@ -40,6 +40,10 @@ export default class GameScene extends Phaser.Scene {
         this.shieldTimer = null;
         this.speedBoostTimer = null;
 
+        // Fireball powerup (piercing shots)
+        this.fireballActive = false;
+        this.fireballTimer = null;
+
         // Touch controls
         this.touchPointer = null;
         this.touchStartX = 0;
@@ -72,6 +76,15 @@ export default class GameScene extends Phaser.Scene {
         // Create UI
         this.createUI();
 
+        // Setup sounds
+        this.sounds = {
+            shoot: this.sound.add('sfx-shoot', { volume: 0.3 }),
+            explosion: this.sound.add('sfx-explosion', { volume: 0.4 }),
+            hit: this.sound.add('sfx-hit', { volume: 0.5 }),
+            powerup: this.sound.add('sfx-powerup', { volume: 0.6 }),
+            playerDeath: this.sound.add('sfx-player-death', { volume: 0.5 })
+        };
+
         // Show level intro then start
         this.showLevelIntro();
     }
@@ -79,59 +92,53 @@ export default class GameScene extends Phaser.Scene {
     // ============== BACKGROUNDS ==============
 
     createBackgrounds() {
-        const scaleX = 480 / 272;
-        const scaleY = 640 / 160;
-
         // Clear any existing background elements
         this.bgLayers = [];
 
+        // Use static images for backgrounds (no seams), tileSprites only for stars
         if (this.level === 1) {
-            // Level 1: Deep space
-            this.bg = this.add.tileSprite(0, 0, 480, 640, 'background')
-                .setOrigin(0, 0).setScale(scaleX, scaleY);
-            this.farPlanets = this.add.tileSprite(0, 0, 480, 640, 'far-planets')
-                .setOrigin(0, 0).setScale(scaleX, scaleY);
+            // Level 1: Deep space - static background, scrolling stars
+            this.bg = this.add.image(240, 320, 'background')
+                .setDisplaySize(480, 640);
+            this.farPlanets = this.add.image(240, 320, 'far-planets')
+                .setDisplaySize(480, 640);
             this.stars = this.add.tileSprite(0, 0, 480, 640, 'stars')
-                .setOrigin(0, 0).setScale(scaleX, scaleY);
+                .setOrigin(0, 0).setTileScale(2);
 
             this.bgLayers = [
-                { sprite: this.bg, speed: 0.3 },
-                { sprite: this.farPlanets, speed: 0.5 },
-                { sprite: this.stars, speed: 1.5 }
+                { sprite: this.stars, speed: 0.5, isTileSprite: true }
             ];
         } else if (this.level === 2) {
-            // Level 2: Planet approach
-            this.bg = this.add.tileSprite(0, 0, 480, 640, 'background')
-                .setOrigin(0, 0).setScale(scaleX, scaleY);
-            this.stars = this.add.tileSprite(0, 0, 480, 640, 'stars')
-                .setOrigin(0, 0).setScale(scaleX, scaleY);
-
-            // Big planet in background
-            this.bigPlanet = this.add.image(350, 200, 'big-planet')
-                .setScale(3).setAlpha(0.7).setDepth(1);
-
-            // Ring planet
-            this.ringPlanet = this.add.image(100, 500, 'ring-planet')
-                .setScale(2.5).setAlpha(0.8).setDepth(1);
+            // Level 2: Desert Canyon
+            this.bg = this.add.image(240, 320, 'desert-bg')
+                .setDisplaySize(480, 640);
+            this.clouds = this.add.tileSprite(0, 0, 480, 640, 'desert-clouds')
+                .setOrigin(0, 0).setTileScale(3).setAlpha(0.4);
 
             this.bgLayers = [
-                { sprite: this.bg, speed: 0.3 },
-                { sprite: this.stars, speed: 1.5 }
+                { sprite: this.clouds, speed: 0.3, isTileSprite: true }
             ];
         } else if (this.level === 3) {
-            // Level 3: Industrial/Alien territory
-            // industrial-bg is 272x160, industrial-buildings is 213x142
-            this.bg = this.add.tileSprite(0, 0, 480, 640, 'industrial-bg')
-                .setOrigin(0, 0).setScale(scaleX, scaleY);
-            this.buildings = this.add.tileSprite(0, 0, 480, 640, 'industrial-buildings')
-                .setOrigin(0, 0).setScale(480 / 213, 640 / 142).setAlpha(0.7);
-            this.stars = this.add.tileSprite(0, 0, 480, 640, 'stars')
-                .setOrigin(0, 0).setScale(scaleX, scaleY).setAlpha(0.4);
+            // Level 3: Lava/Hell
+            this.bg = this.add.image(240, 320, 'lava-bg')
+                .setDisplaySize(480, 640);
+
+            // Rising embers effect - reuse stars with orange tint, scrolling UP
+            this.embers = this.add.tileSprite(0, 0, 480, 640, 'stars')
+                .setOrigin(0, 0).setTileScale(2).setAlpha(0.5).setTint(0xff6600);
+
+            // Animated lava flow at the bottom
+            this.lavaSprites = [];
+            for (let i = 0; i < 16; i++) {
+                const lava = this.add.sprite(i * 32, 620, 'lava-flow')
+                    .setScale(1).setOrigin(0, 0.5).setDepth(2);
+                lava.play('lava-flow');
+                lava.anims.setProgress(i * 0.0625); // Offset timing
+                this.lavaSprites.push(lava);
+            }
 
             this.bgLayers = [
-                { sprite: this.bg, speed: 0.3 },
-                { sprite: this.buildings, speed: 1.2 },
-                { sprite: this.stars, speed: 0.6 }
+                { sprite: this.embers, speed: -0.3, isTileSprite: true } // Negative = scroll up
             ];
         }
     }
@@ -171,6 +178,29 @@ export default class GameScene extends Phaser.Scene {
                 this.waveInProgress = false;
                 // Start boss fight
                 this.startBossFight();
+            }
+        });
+
+        // Secret: X key to skip to next level
+        this.input.keyboard.on('keydown-X', () => {
+            if (!this.isDead) {
+                // Stop all spawning and clear enemies
+                if (this.enemySpawnTimer) this.enemySpawnTimer.remove();
+                this.enemies.clear(true, true);
+                this.bossGroup.clear(true, true);
+                this.bossActive = false;
+
+                if (this.level >= 3) {
+                    // Victory!
+                    this.scene.start('VictoryScene', { score: this.score });
+                } else {
+                    // Next level
+                    this.scene.start('GameScene', {
+                        level: this.level + 1,
+                        score: this.score,
+                        weaponLevel: this.weaponLevel
+                    });
+                }
             }
         });
 
@@ -322,6 +352,9 @@ export default class GameScene extends Phaser.Scene {
         const x = this.player.x;
         const y = this.player.y - 20;
 
+        // Play shoot sound
+        this.sounds.shoot.play();
+
         if (this.weaponLevel === 1) {
             this.createBullet(x, y, 0);
         } else if (this.weaponLevel === 2) {
@@ -335,10 +368,21 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createBullet(x, y, velocityX) {
-        const bullet = this.bullets.create(x, y, 'laser', 0);
-        bullet.setScale(2);
-        bullet.body.setSize(8, 14);
-        bullet.setVelocity(velocityX, -this.bulletSpeed);
+        if (this.fireballActive) {
+            // Fireball - piercing shot
+            const bullet = this.bullets.create(x, y, 'fireball');
+            bullet.setScale(1.5);
+            bullet.play('fireball-spin');
+            bullet.body.setSize(20, 20);
+            bullet.setVelocity(velocityX * 0.8, -this.bulletSpeed * 0.9);
+            bullet.isPiercing = true; // Mark as piercing
+        } else {
+            // Normal laser
+            const bullet = this.bullets.create(x, y, 'laser', 0);
+            bullet.setScale(2);
+            bullet.body.setSize(8, 14);
+            bullet.setVelocity(velocityX, -this.bulletSpeed);
+        }
     }
 
     updateShield() {
@@ -424,46 +468,68 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createSmallEnemy(x) {
-        const enemy = this.enemies.create(x, -30, 'enemy-small');
-        enemy.setScale(3);
-        enemy.play('enemy-small-fly');
-        enemy.setSize(14, 14);
+        // Level-specific sprites
+        const sprites = {
+            1: { key: 'enemy-small', anim: 'enemy-small-fly', scale: 3, size: [14, 14] },
+            2: { key: 'l2-enemy-small', anim: 'l2-enemy-small-fly', scale: 1.5, size: [40, 40] },
+            3: { key: 'l3-enemy-small', anim: 'l3-enemy-small-fly', scale: 3, size: [14, 14] } // Bat
+        };
+        const s = sprites[this.level] || sprites[1];
+
+        const enemy = this.enemies.create(x, -30, s.key);
+        enemy.setScale(s.scale);
+        enemy.play(s.anim);
+        enemy.setSize(s.size[0], s.size[1]);
         enemy.enemyType = 'small';
         enemy.health = 1;
         enemy.points = 100;
-        // FASTER speeds!
         enemy.setVelocityY(Phaser.Math.Between(120 + this.level * 20, 220 + this.level * 25));
         enemy.setVelocityX(Phaser.Math.Between(-60, 60));
     }
 
     createMediumEnemy(x) {
-        const enemy = this.enemies.create(x, -30, 'enemy-medium');
-        enemy.setScale(3);
-        enemy.play('enemy-medium-fly');
-        enemy.setSize(14, 14);
+        // Level-specific sprites
+        const sprites = {
+            1: { key: 'enemy-medium', anim: 'enemy-medium-fly', scale: 3, size: [28, 14], rotate: false },
+            2: { key: 'l2-enemy-medium', anim: 'l2-enemy-medium-fly', scale: 1.5, size: [40, 40], rotate: false },
+            3: { key: 'l3-enemy-medium', anim: 'l3-enemy-medium-fly', scale: 3, size: [14, 14], rotate: false } // Ghost
+        };
+        const s = sprites[this.level] || sprites[1];
+
+        const enemy = this.enemies.create(x, -30, s.key);
+        enemy.setScale(s.scale);
+        if (s.rotate) enemy.setAngle(90); // Rotate side-facing sprites to face down
+        enemy.play(s.anim);
+        enemy.setSize(s.size[0], s.size[1]);
         enemy.enemyType = 'medium';
         enemy.health = 2;
         enemy.points = 200;
         enemy.canShoot = true;
         enemy.lastShot = 0;
-        // Shoot much more frequently!
         enemy.shootDelay = Phaser.Math.Between(800 - this.level * 100, 1500 - this.level * 150);
         enemy.setVelocityY(Phaser.Math.Between(80, 140));
-        // Medium enemies now also move horizontally
         enemy.setVelocityX(Phaser.Math.Between(-40, 40));
     }
 
     createBigEnemy(x) {
-        const enemy = this.enemies.create(x, -50, 'enemy-big');
-        enemy.setScale(2.5);
-        enemy.play('enemy-big-fly');
-        enemy.setSize(28, 28);
+        // Level-specific sprites
+        const sprites = {
+            1: { key: 'enemy-big', anim: 'enemy-big-fly', scale: 2.5, size: [28, 28] },
+            2: { key: 'l2-enemy-big', anim: 'l2-enemy-big-fly', scale: 1.5, size: [40, 40] },
+            3: { key: 'l3-enemy-big', anim: 'l3-enemy-big-fly', scale: 1.8, size: [40, 40], rotate: true } // Flying eye
+        };
+        const s = sprites[this.level] || sprites[1];
+
+        const enemy = this.enemies.create(x, -50, s.key);
+        enemy.setScale(s.scale);
+        if (s.rotate) enemy.setAngle(90); // Rotate side-facing sprites to face down
+        enemy.play(s.anim);
+        enemy.setSize(s.size[0], s.size[1]);
         enemy.enemyType = 'big';
-        enemy.health = 3 + this.level; // Slightly less HP but more of them
+        enemy.health = 3 + this.level;
         enemy.points = 500;
         enemy.canShoot = true;
         enemy.lastShot = 0;
-        // Shoot more aggressively!
         enemy.shootDelay = Phaser.Math.Between(500, 1000);
         enemy.setVelocityY(Phaser.Math.Between(50, 90));
         enemy.trackPlayer = true;
@@ -544,15 +610,37 @@ export default class GameScene extends Phaser.Scene {
         // Clear the boss group first
         this.bossGroup.clear(true, true);
 
+        // Level-specific boss configuration
+        const bossConfigs = {
+            1: {
+                key: 'boss',
+                anim: 'boss-idle',
+                scale: 1.2,
+                hitbox: { w: 160, h: 100, ox: 16, oy: 22 }
+            },
+            2: {
+                key: 'fire-skull',
+                anim: 'fire-skull-idle',
+                scale: 2.25,
+                hitbox: { w: 120, h: 135, ox: -12, oy: -12 }
+            },
+            3: {
+                key: 'demon-idle',
+                anim: 'demon-idle',
+                scale: 1.2,
+                hitbox: { w: 140, h: 120, ox: 10, oy: 12 }
+            }
+        };
+        const config = bossConfigs[this.level] || bossConfigs[1];
+
         // Create boss and add to dedicated boss group
-        this.boss = this.bossGroup.create(240, -100, 'boss');
-        this.boss.setScale(1.2);
-        this.boss.play('boss-idle');
+        this.boss = this.bossGroup.create(240, -100, config.key);
+        this.boss.setScale(config.scale);
+        this.boss.play(config.anim);
         this.boss.setDepth(5);
 
-        // Boss tint based on level
-        const tints = [0xffffff, 0x8888ff, 0xffdd00];
-        this.boss.setTint(tints[this.level - 1]);
+        // Store boss type for later reference
+        this.boss.bossType = this.level;
 
         // Boss stats scale with level - ULTRA TANKY BOSS!
         // Store HP at SCENE level, not on sprite, to avoid any Phaser conflicts
@@ -564,17 +652,12 @@ export default class GameScene extends Phaser.Scene {
         // Mark this sprite as THE boss so we can identify it even if this.boss reference is lost
         this.boss.isBossSprite = true;
 
-        // Debug log
-        console.log('=== BOSS SPAWNED ===');
-        console.log('Level:', this.level);
-        console.log('Scene-level bossHP:', this.bossHP);
-        console.log('Scene-level bossMaxHP:', this.bossMaxHP);
         this.boss.shootPattern = 0;
         this.boss.phaseTime = 0;
 
-        // Set hitbox
-        this.boss.body.setSize(160, 100);
-        this.boss.body.setOffset(16, 22);
+        // Set hitbox based on boss config
+        this.boss.body.setSize(config.hitbox.w, config.hitbox.h);
+        this.boss.body.setOffset(config.hitbox.ox, config.hitbox.oy);
 
         // Boss is invincible during entry
         this.boss.isEntering = true;
@@ -602,8 +685,6 @@ export default class GameScene extends Phaser.Scene {
 
                 // Fire immediately on entry!
                 this.bossShoot();
-
-                console.log('Boss collision enabled, HP:', this.bossHP);
             }
         });
     }
@@ -617,17 +698,28 @@ export default class GameScene extends Phaser.Scene {
         const moveX = Math.sin(this.boss.phaseTime * 0.002) * 100;
         this.boss.x = 240 + moveX;
 
-        // Shooting patterns based on health - VERY AGGRESSIVE!
+        // Shooting patterns based on health
         // Use scene-level HP variables
         const healthPercent = this.bossHP / this.bossMaxHP;
-        let shootDelay = 600; // Fast shooting!
+        const bossType = this.boss.bossType || 1;
+        let shootDelay = 600;
 
-        if (healthPercent < 0.3) {
-            shootDelay = 250; // Bullet hell final phase!
-            this.boss.shootPattern = 2;
-        } else if (healthPercent < 0.6) {
-            shootDelay = 400;
-            this.boss.shootPattern = 1;
+        if (bossType === 1) {
+            // Boss 1: Easy - no phase changes, consistent speed
+            shootDelay = 700;
+            this.boss.shootPattern = 0;
+        } else {
+            // Boss 2 & 3: Progressive difficulty with phases
+            if (healthPercent < 0.3) {
+                shootDelay = 300;
+                this.boss.shootPattern = 2;
+            } else if (healthPercent < 0.6) {
+                shootDelay = 450;
+                this.boss.shootPattern = 1;
+            } else {
+                shootDelay = 600;
+                this.boss.shootPattern = 0;
+            }
         }
 
         if (time > this.boss.lastShot + shootDelay) {
@@ -635,42 +727,97 @@ export default class GameScene extends Phaser.Scene {
             this.boss.lastShot = time;
         }
 
-        // Update damage animation
-        if (healthPercent < 0.3) {
-            this.boss.play('boss-damage-3', true);
-        } else if (healthPercent < 0.6) {
-            this.boss.play('boss-damage-2', true);
-        } else if (healthPercent < 0.85) {
-            this.boss.play('boss-damage-1', true);
+        // Update damage visual feedback
+        if (this.boss.bossType === 1) {
+            // Original boss has damage frames
+            if (healthPercent < 0.3) {
+                this.boss.play('boss-damage-3', true);
+            } else if (healthPercent < 0.6) {
+                this.boss.play('boss-damage-2', true);
+            } else if (healthPercent < 0.85) {
+                this.boss.play('boss-damage-1', true);
+            }
+        } else {
+            // Other bosses use tint for damage feedback
+            if (healthPercent < 0.3) {
+                this.boss.setTint(0xff0000); // Red when critical
+            } else if (healthPercent < 0.6) {
+                this.boss.setTint(0xff8800); // Orange when damaged
+            } else {
+                this.boss.clearTint(); // Normal
+            }
         }
     }
 
     bossShoot() {
-        if (this.boss.shootPattern === 0) {
-            // 3-bullet spread
+        const bossType = this.boss.bossType || 1;
+
+        if (bossType === 1) {
+            // BOSS 1: Original - Simple attacks, no intense phases
+            // Only uses pattern 0 (simple spread)
             for (let i = -1; i <= 1; i++) {
                 const bullet = this.enemyBullets.create(this.boss.x + i * 40, this.boss.y + 60, 'laser', 2);
                 bullet.setScale(2.5);
                 bullet.setTint(0xff0000);
-                bullet.setVelocity(i * 80, 250);
+                bullet.setVelocity(i * 60, 200);
             }
-        } else if (this.boss.shootPattern === 1) {
-            // 3 aimed shots spread out
-            for (let i = -1; i <= 1; i++) {
-                const bullet = this.enemyBullets.create(this.boss.x + i * 50, this.boss.y + 60, 'laser', 2);
-                bullet.setScale(2.5);
-                bullet.setTint(0xff4400);
-                const angle = Phaser.Math.Angle.Between(bullet.x, bullet.y, this.player.x, this.player.y);
-                bullet.setVelocity(Math.cos(angle) * 220 + i * 40, Math.sin(angle) * 220);
+        } else if (bossType === 2) {
+            // BOSS 2: Fire Skull - Fireballs with varying patterns
+            if (this.boss.shootPattern === 0) {
+                // Wide fire spread (5 bullets in arc)
+                for (let i = -2; i <= 2; i++) {
+                    const bullet = this.enemyBullets.create(this.boss.x, this.boss.y + 60, 'laser', 2);
+                    bullet.setScale(3);
+                    bullet.setTint(0xff6600);
+                    bullet.setVelocity(i * 70, 180);
+                }
+            } else if (this.boss.shootPattern === 1) {
+                // Homing fireballs (3 that track player)
+                for (let i = -1; i <= 1; i++) {
+                    const bullet = this.enemyBullets.create(this.boss.x + i * 60, this.boss.y + 50, 'laser', 2);
+                    bullet.setScale(3.5);
+                    bullet.setTint(0xff4400);
+                    const angle = Phaser.Math.Angle.Between(bullet.x, bullet.y, this.player.x, this.player.y);
+                    bullet.setVelocity(Math.cos(angle) * 200, Math.sin(angle) * 200);
+                }
+            } else {
+                // Fire rain - random fireballs dropping
+                for (let i = 0; i < 5; i++) {
+                    const x = this.boss.x + Phaser.Math.Between(-100, 100);
+                    const bullet = this.enemyBullets.create(x, this.boss.y + 40, 'laser', 2);
+                    bullet.setScale(2.5);
+                    bullet.setTint(0xff2200);
+                    bullet.setVelocity(Phaser.Math.Between(-30, 30), Phaser.Math.Between(200, 280));
+                }
             }
-        } else {
-            // 6-bullet spiral pattern (less intense)
-            for (let i = 0; i < 6; i++) {
-                const angle = (this.boss.phaseTime * 0.015) + (i * Math.PI / 3);
-                const bullet = this.enemyBullets.create(this.boss.x, this.boss.y + 60, 'laser', 2);
-                bullet.setScale(2);
-                bullet.setTint(0xff0066);
-                bullet.setVelocity(Math.cos(angle) * 180, Math.sin(angle) * 180 + 100);
+        } else if (bossType === 3) {
+            // BOSS 3: Demon - Blue fire breath and dark magic attacks
+            if (this.boss.shootPattern === 0) {
+                // Blue fire breath - wide spreading flames
+                for (let i = -3; i <= 3; i++) {
+                    const bullet = this.enemyBullets.create(this.boss.x + i * 25, this.boss.y + 80, 'laser', 2);
+                    bullet.setScale(2.5);
+                    bullet.setTint(0x00ccff); // Blue fire
+                    bullet.setVelocity(i * 60, 200);
+                }
+            } else if (this.boss.shootPattern === 1) {
+                // Dark orbs - homing projectiles from wings
+                for (let i = -1; i <= 1; i++) {
+                    const bullet = this.enemyBullets.create(this.boss.x + i * 80, this.boss.y + 40, 'laser', 2);
+                    bullet.setScale(3);
+                    bullet.setTint(0x8800ff); // Purple dark magic
+                    const angle = Phaser.Math.Angle.Between(bullet.x, bullet.y, this.player.x, this.player.y);
+                    bullet.setVelocity(Math.cos(angle) * 220, Math.sin(angle) * 220);
+                }
+            } else {
+                // Demon fury - spiral fire + rain of flames
+                for (let i = 0; i < 10; i++) {
+                    const angle = (this.boss.phaseTime * 0.025) + (i * Math.PI / 5);
+                    const bullet = this.enemyBullets.create(this.boss.x, this.boss.y + 60, 'laser', 2);
+                    bullet.setScale(2);
+                    bullet.setTint(0x00aaff); // Blue flames
+                    bullet.setVelocity(Math.cos(angle) * 180, Math.sin(angle) * 180 + 100);
+                }
             }
         }
     }
@@ -682,14 +829,22 @@ export default class GameScene extends Phaser.Scene {
             return;
         }
 
-        bullet.destroy();
+        // Piercing bullets don't get destroyed but track hits
+        if (bullet.isPiercing) {
+            if (!bullet.hitBoss) bullet.hitBoss = false;
+            if (bullet.hitBoss) return; // Already hit boss this pass
+            bullet.hitBoss = true;
+            // Reset after a short delay so it can hit again if still in contact
+            this.time.delayedCall(200, () => {
+                if (bullet.active) bullet.hitBoss = false;
+            });
+        } else {
+            bullet.destroy();
+        }
 
-        // Each bullet does 10 damage - use SCENE-LEVEL HP
-        const damage = 10;
-        const oldHealth = this.bossHP;
+        // Each bullet does 10 damage (fireballs do 15) - use SCENE-LEVEL HP
+        const damage = bullet.isPiercing ? 15 : 10;
         this.bossHP = Math.max(0, this.bossHP - damage);
-
-        console.log('Boss hit! HP:', oldHealth, '->', this.bossHP, '/', this.bossMaxHP);
 
         // Update health bar using scene-level HP
         const healthPercent = this.bossHP / this.bossMaxHP;
@@ -711,17 +866,13 @@ export default class GameScene extends Phaser.Scene {
 
         // Only defeat boss when health reaches 0 - use SCENE-LEVEL HP
         if (this.bossHP <= 0 && this.bossActive) {
-            console.log('Boss defeated! Calling defeatBoss()');
             this.defeatBoss();
         }
     }
 
     defeatBoss() {
-        console.log('defeatBoss() called, bossActive:', this.bossActive, 'boss:', !!this.boss);
-
         // Prevent multiple calls
         if (!this.bossActive) {
-            console.log('defeatBoss() early return - already processed');
             return;
         }
 
@@ -761,7 +912,6 @@ export default class GameScene extends Phaser.Scene {
 
         // Final big explosion and level complete
         this.time.delayedCall(1600, () => {
-            console.log('Boss final explosion sequence starting');
             this.createExplosion(bossX, bossY, 'boss');
             this.createExplosion(bossX - 40, bossY - 20, 'boss');
             this.createExplosion(bossX + 40, bossY + 20, 'boss');
@@ -775,13 +925,11 @@ export default class GameScene extends Phaser.Scene {
             this.boss = null;
 
             // Level complete after short delay
-            console.log('Scheduling levelComplete in 1500ms');
             this.time.delayedCall(1500, () => this.levelComplete());
         });
     }
 
     levelComplete() {
-        console.log('levelComplete() called, current level:', this.level);
 
         // Save progress
         const bestLevel = parseInt(localStorage.getItem('bestLevel')) || 0;
@@ -791,11 +939,9 @@ export default class GameScene extends Phaser.Scene {
 
         if (this.level >= 3) {
             // Game complete!
-            console.log('All levels complete! Going to VictoryScene');
             this.scene.start('VictoryScene', { score: this.score });
         } else {
             // Next level
-            console.log('Level complete! Going to level', this.level + 1);
             this.announceText.setText('LEVEL COMPLETE!');
             this.announceText.setAlpha(1);
 
@@ -820,7 +966,16 @@ export default class GameScene extends Phaser.Scene {
             return;
         }
 
-        bullet.destroy();
+        // Piercing bullets don't get destroyed (but have cooldown per enemy)
+        if (bullet.isPiercing) {
+            // Track which enemies this bullet has hit
+            if (!bullet.hitEnemies) bullet.hitEnemies = new Set();
+            if (bullet.hitEnemies.has(enemy)) return; // Already hit this enemy
+            bullet.hitEnemies.add(enemy);
+        } else {
+            bullet.destroy();
+        }
+
         enemy.health--;
 
         if (enemy.health <= 0) {
@@ -870,6 +1025,9 @@ export default class GameScene extends Phaser.Scene {
     takeDamage(amount) {
         this.health -= amount;
         this.updateHealthBar();
+
+        // Play hit sound
+        this.sounds.hit.play();
 
         this.player.setTint(0xff0000);
         this.time.delayedCall(100, () => {
@@ -921,9 +1079,9 @@ export default class GameScene extends Phaser.Scene {
     }
 
     gameOver() {
-        console.log('gameOver() called! Lives:', this.lives, 'Boss active:', this.bossActive);
         this.isDead = true;
         this.createExplosion(this.player.x, this.player.y, 'big');
+        this.sounds.playerDeath.play();
         this.player.setVisible(false);
         this.player.body.enable = false;
 
@@ -945,11 +1103,11 @@ export default class GameScene extends Phaser.Scene {
     // ============== POWER-UPS ==============
 
     maybeDropPowerup(x, y) {
-        // Higher drop rate (25%) to balance increased difficulty!
-        if (Math.random() > 0.25) return;
+        // 20% drop rate
+        if (Math.random() > 0.20) return;
 
-        const weights = [0.4, 0.3, 0.25, 0.05];
-        const types = ['weapon', 'shield', 'speed', 'life'];
+        const weights = [0.30, 0.25, 0.20, 0.05, 0.20]; // weapon, shield, speed, life, fireball
+        const types = ['weapon', 'shield', 'speed', 'life', 'fireball'];
         let rand = Math.random();
         let type = 'weapon';
 
@@ -958,11 +1116,14 @@ export default class GameScene extends Phaser.Scene {
             rand -= weights[i];
         }
 
-        const frameMap = { weapon: 0, shield: 1, speed: 2, life: 3 };
+        const frameMap = { weapon: 0, shield: 1, speed: 2, life: 3, fireball: 0 };
         const powerup = this.powerups.create(x, y, 'powerup', frameMap[type]);
         powerup.setScale(2.5);
         powerup.powerupType = type;
         powerup.setVelocityY(80);
+
+        // Fireball powerup has orange tint to distinguish from weapon
+        if (type === 'fireball') powerup.setTint(0xff6600);
 
         this.tweens.add({
             targets: powerup,
@@ -976,16 +1137,21 @@ export default class GameScene extends Phaser.Scene {
     collectPowerup(player, powerup) {
         const type = powerup.powerupType;
 
+        // Play powerup sound
+        this.sounds.powerup.play();
+
         const messages = {
             weapon: ['WEAPON UP!', 0xff8800],
             shield: ['SHIELD!', 0x00ffff],
             speed: ['SPEED BOOST!', 0x00ff00],
-            life: ['EXTRA LIFE!', 0xff00ff]
+            life: ['EXTRA LIFE!', 0xff00ff],
+            fireball: ['FIREBALL!', 0xff4400]
         };
 
         if (type === 'weapon') this.weaponLevel = Math.min(this.weaponLevel + 1, 3);
         else if (type === 'shield') this.activateShield();
         else if (type === 'speed') this.activateSpeedBoost();
+        else if (type === 'fireball') this.activateFireball();
         else if (type === 'life') {
             this.lives++;
             this.livesText.setText('x' + this.lives);
@@ -1005,6 +1171,13 @@ export default class GameScene extends Phaser.Scene {
         this.playerSpeedBoost = 1.5;
         if (this.speedBoostTimer) this.speedBoostTimer.remove();
         this.speedBoostTimer = this.time.delayedCall(5000, () => this.playerSpeedBoost = 1);
+    }
+
+    activateFireball() {
+        this.fireballActive = true;
+        if (this.fireballTimer) this.fireballTimer.remove();
+        // Fireball lasts 8 seconds
+        this.fireballTimer = this.time.delayedCall(8000, () => this.fireballActive = false);
     }
 
     showPowerupText(text, color) {
@@ -1034,6 +1207,9 @@ export default class GameScene extends Phaser.Scene {
         const explosion = this.add.sprite(x, y, sprite).setScale(scale).setDepth(50);
         explosion.play(anim);
         explosion.on('animationcomplete', () => explosion.destroy());
+
+        // Play explosion sound
+        this.sounds.explosion.play();
 
         if (type === 'big' || type === 'boss') {
             this.cameras.main.shake(200, 0.02);
