@@ -85,6 +85,11 @@ export default class GameScene extends Phaser.Scene {
             bossWarning: this.sound.add('sfx-boss-warning', { volume: 0.7 })
         };
 
+        // Start level music
+        const musicKey = `music-level${this.level}`;
+        this.music = this.sound.add(musicKey, { loop: true, volume: 0.4 });
+        this.music.play();
+
         // Show level intro then start
         this.showLevelIntro();
     }
@@ -190,6 +195,7 @@ export default class GameScene extends Phaser.Scene {
                 this.bossGroup.clear(true, true);
                 this.bossActive = false;
 
+                this.music.stop();
                 if (this.level >= 3) {
                     // Victory!
                     this.scene.start('VictoryScene', { score: this.score });
@@ -939,6 +945,7 @@ export default class GameScene extends Phaser.Scene {
             localStorage.setItem('bestLevel', this.level);
         }
 
+        this.music.stop();
         if (this.level >= 3) {
             // Game complete!
             this.scene.start('VictoryScene', { score: this.score });
@@ -1084,6 +1091,7 @@ export default class GameScene extends Phaser.Scene {
         this.isDead = true;
         this.createExplosion(this.player.x, this.player.y, 'big');
         this.sounds.playerDeath.play();
+        this.music.stop();
         this.player.setVisible(false);
         this.player.body.enable = false;
 

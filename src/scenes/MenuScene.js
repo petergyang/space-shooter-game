@@ -7,6 +7,10 @@ export default class MenuScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
+        // Start title music
+        this.music = this.sound.add('music-title', { loop: true, volume: 0.5 });
+        this.music.play();
+
         // Dynamic background with all three level backgrounds cycling
         this.bgIndex = 0;
         this.backgrounds = ['background', 'desert-bg', 'lava-bg'];
@@ -163,6 +167,7 @@ export default class MenuScene extends Phaser.Scene {
 
         // Play button - most prominent
         const playBtn = this.createButton(width / 2, menuY, '[ START MISSION ]', '#00ff00', () => {
+            this.music.stop();
             this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('GameScene', { level: 1 });
@@ -210,6 +215,7 @@ export default class MenuScene extends Phaser.Scene {
 
         // Keyboard shortcuts
         this.input.keyboard.once('keydown-SPACE', () => {
+            this.music.stop();
             this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('GameScene', { level: 1 });
@@ -217,6 +223,7 @@ export default class MenuScene extends Phaser.Scene {
         });
 
         this.input.keyboard.once('keydown-ENTER', () => {
+            this.music.stop();
             this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('GameScene', { level: 1 });

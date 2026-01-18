@@ -11,6 +11,10 @@ export default class VictoryScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
+        // Play victory/ending music
+        this.music = this.sound.add('music-ending', { loop: true, volume: 0.5 });
+        this.music.play();
+
         // Epic golden tinted background
         this.bg = this.add.image(240, 320, 'background')
             .setDisplaySize(480, 640)
@@ -231,6 +235,7 @@ export default class VictoryScene extends Phaser.Scene {
             playAgainBtn.setFill('#00ffff');
         });
         playAgainBtn.on('pointerdown', () => {
+            this.music.stop();
             this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('MenuScene');
@@ -254,6 +259,7 @@ export default class VictoryScene extends Phaser.Scene {
         // ===== INPUT =====
 
         this.input.keyboard.once('keydown-SPACE', () => {
+            this.music.stop();
             this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('MenuScene');
@@ -261,6 +267,7 @@ export default class VictoryScene extends Phaser.Scene {
         });
 
         this.input.once('pointerdown', () => {
+            this.music.stop();
             this.cameras.main.flash(500, 255, 255, 255);
             this.time.delayedCall(300, () => {
                 this.scene.start('MenuScene');
